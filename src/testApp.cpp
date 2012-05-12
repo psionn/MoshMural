@@ -14,6 +14,10 @@ void testApp::setup(){
     nearThreshold           = 230;
     farThreshold            = 90;
     blobCount               = 0;
+    vAdj                    = 0;
+    hAdj                    = 0;
+    vZoom                   = 2.0f;
+    hZoom                   = 1.6f;
     
     grayImage.allocate(kinect.width, kinect.height);
 	grayThreshNear.allocate(kinect.width, kinect.height);
@@ -30,7 +34,11 @@ void testApp::setup(){
     
     tracker.setListener(listener);
     
-    srand((unsigned int)time((time_t *)NULL));
+    serial.enumerateDevices();
+
+    serial.setup("/dev/cu.usbmodem621", 9600);
+    
+//    srand((unsigned int)time((time_t *)NULL));
     
     // 0 output channels, 
     // 2 input channels
@@ -55,8 +63,49 @@ void testApp::setup(){
 
 }
 
+void testApp::serialHandler() {
+    
+    bool sw = serial.writeByte(1);
+
+    // we want to read 8 bytes 
+    int bytesRequired = 16; 
+    unsigned char bytes[bytesRequired]; 
+    int bytesRemaining = bytesRequired; 
+    // loop until we've read everything 
+    while ( bytesRemaining > 0 ) { 
+        // check for data 
+        if ( serial.available() > 0 ) { 
+            // try to read - note offset into the bytes[] array, this is so
+            // that we don't overwrite the bytes we already have 
+            int bytesArrayOffset = bytesRequired - bytesRemaining; 
+            int result = serial.readBytes( &bytes[bytesArrayOffset], bytesRemaining );
+            // check for error code
+            if ( result == OF_SERIAL_ERROR )
+            {
+                // something bad happened
+                ofLog( OF_LOG_ERROR, "unrecoverable error reading from serial" );
+                // bail out
+                break;
+            }
+            else if ( result == OF_SERIAL_NO_DATA )
+            {
+                // nothing was read, try again
+            }
+            else
+            {   
+                // we read some data!
+                bytesRemaining -= result;
+            }
+        }
+    }
+    cout<<"READ:";
+    for (int i = 0; i<bytesRequired; i++) cout<<bytes[i];
+    cout<<endl;
+}
+
 //--------------------------------------------------------------
 void testApp::update(){
+    serialHandler();
     if (volume || frequency) {
         if (!streaming) {
             stream.start();
@@ -81,7 +130,7 @@ void testApp::update(){
         if (flocking) listener->update();
         if (debug) img = &kinect.getTextureReference();
     }
-    
+
 
 }
 
@@ -163,12 +212,14 @@ void testApp::blobHandler(bool bThreshWithOpenCV = false) {
     
     
     contourFinder.findContours(grayImage, 300, (kinect.width*kinect.height)/2, 20, false);
-    scalePoints(contourFinder);
+    scalePoints(contourFinder, vZoom, hZoom, vAdj, hAdj);
     tracker.trackBlobs( contourFinder.blobs );
 }
 
 void testApp::scalePoints(ofxCvContourFinder& cf, float wScale, float hScale, int vAdjust, int hAdjust) {
     for (int i = 0; i < cf.blobs.size(); i++) {
+        cf.blobs[i].centroid.x = cf.blobs[i].centroid.x * wScale + vAdjust;
+        cf.blobs[i].centroid.y = cf.blobs[i].centroid.y * hScale + hAdjust;
         for (int j = 0; j < cf.blobs[i].pts.size(); j++) {
             cf.blobs[i].pts[j].x = cf.blobs[i].pts[j].x * wScale + vAdjust;
             cf.blobs[i].pts[j].y = cf.blobs[i].pts[j].y * hScale + hAdjust;
@@ -178,28 +229,57 @@ void testApp::scalePoints(ofxCvContourFinder& cf, float wScale, float hScale, in
 
 //--------------------------------------------------------------
 void testApp::keyPressed(int key){
-    if (key == 'f') {
-        flocking = !flocking;
-    } else if (key == 'c') {
-        cracking = !cracking;
-    } else if (key == 'm') {
-        meshing = !meshing;
-    } else if (key == '-') {
-        nearThreshold --;
-    } else if (key == '=') {
-        nearThreshold ++;
-    } else if (key == '[') {
-        farThreshold --;
-    } else if (key == ']') {
-        farThreshold ++;
-    } else if (key == 'd') {
-        debug = !debug;
-    } else if (key == 'v') {
-        volume = !volume;
-    } else if (key == 'f') {
-        frequency = ! frequency;
+    switch (key) {
+        case 'f':
+            flocking = !flocking;
+            break;
+        case 'c':
+            cracking = !cracking;
+            break;
+        case 'm':
+            meshing = !meshing;
+            break;
+        case 'v':
+            volume = !volume;
+            break;
+        case 'd':
+            debug = !debug;
+            break;
+        case '-':
+            nearThreshold--;
+            break;
+        case '=':
+            nearThreshold++;
+            break;
+        case '_':
+            farThreshold--;
+            break;
+        case '+':
+            farThreshold++;
+            break;
+        case OF_KEY_DOWN:
+            hAdj--;
+            break;
+        case OF_KEY_UP:
+            hAdj++;
+            break;
+        case OF_KEY_LEFT:
+            vAdj--;
+            break;
+        case OF_KEY_RIGHT:
+            vAdj++;
+            break;
+        case ',':
+            vZoom -= .1;
+            hZoom -= .1;
+            break;
+        case '.':
+            vZoom += .1;
+            hZoom += .1;
+            break;
+        default:
+            break;
     }
-
 }
 
 //--------------------------------------------------------------

@@ -31,8 +31,21 @@ void MyFlock::setup(ofPoint center, ofColor c) {
 }
 
 void MyFlock::draw(int magnitude, int frequency) {
+    ofEnableSmoothing();
+    ofSetLineWidth(10);
+    ofSetColor(color);
+    ofNoFill();
+    ofBeginShape();
+    
+    for(int i = 0; i < points.size(); i++)
+    {
+        ofVertex(points[i].x, points[i].y);
+    }
+    
+    ofEndShape();
+    
 //    cout<<" B: "<<boids.size();
-    float mag = ofMap(magnitude, 0, 100, 0, 2.5f);
+    float mag = ofMap(magnitude, 0, 100, 0, 10.0f);
     for (int i = 0; i < boids.size() ; i++) {
         if (magnitude != 0) boids[i].draw(color, mag);
         else boids[i].draw(color);

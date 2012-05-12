@@ -20,6 +20,10 @@ class testApp : public ofBaseApp{
     int 	bufferCounter;
     fft		myfft;
     
+    ofSerial serial;
+    
+    float     vAdj, hAdj, vZoom, hZoom;
+    
     int     max, frq;
     int     absMax;
     ofSoundStream stream;
@@ -49,6 +53,7 @@ public:
     void gotMessage(ofMessage msg);
     void audioReceived(float * input, int bufferSize, int nChannels);
     
+    void serialHandler();
     void fftUpdate();
     void scalePoints(ofxCvContourFinder& cf, float wScale = 1.6f, float hScale = 1.6f, int vAdjust = 0, int hAdjust = 0);
     void blobHandler(bool thresh);
